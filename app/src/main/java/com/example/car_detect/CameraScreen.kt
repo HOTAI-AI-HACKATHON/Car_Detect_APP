@@ -70,7 +70,7 @@ import com.google.mlkit.vision.objects.ObjectDetection
 import com.google.mlkit.vision.objects.ObjectDetector
 import com.google.mlkit.vision.objects.defaults.ObjectDetectorOptions
 import java.io.File
-import java.text.SimpleDateFormat
+import java.text.SimpleDateFormaㄌ
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -378,39 +378,40 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         ) {
-            // 階段文字指示
+            // 階段文字指示 (與下方 4 個卡片 1:1 精準對齊置中)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 InspectionAngle.entries.forEachIndexed { index, angle ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(14.dp)
-                                .clip(CircleShape)
-                                .border(
-                                    1.5.dp,
-                                    if (selectedAngleIndex == index) Color(0xFF111111) else Color(0xFFAAAAAA),
-                                    CircleShape
-                                )
-                                .background(if (selectedAngleIndex == index) Color(0xFF111111) else Color.Transparent)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = angle.label,
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedAngleIndex == index) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selectedAngleIndex == index) Color(0xFF111111) else Color(0xFF888888)
-                        )
-
-                        if (index < InspectionAngle.entries.size - 1) {
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .border(
+                                        1.5.dp,
+                                        if (selectedAngleIndex == index) Color(0xFF111111) else Color(0xFFAAAAAA),
+                                        CircleShape
+                                    )
+                                    .background(if (selectedAngleIndex == index) Color(0xFF111111) else Color.Transparent)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
-                                text = "---->",
-                                fontSize = 10.sp,
-                                color = Color(0xFFCCCCCC),
-                                modifier = Modifier.padding(start = 4.dp)
+                                text = angle.label,
+                                fontSize = 11.5.sp,
+                                fontWeight = if (selectedAngleIndex == index) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedAngleIndex == index) Color(0xFF111111) else Color(0xFF888888),
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
