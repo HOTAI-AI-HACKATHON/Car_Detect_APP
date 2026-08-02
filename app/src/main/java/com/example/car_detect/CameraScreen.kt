@@ -358,7 +358,15 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                 angle = InspectionAngle.entries[selectedAngleIndex]
             )
 
-            // 相機視窗下方提示條
+            // 相機視窗下方動態提示條 (根據選擇角度提示對應輪胎與車牌)
+            val currentAngle = InspectionAngle.entries[selectedAngleIndex]
+            val hintText = when (currentAngle) {
+                InspectionAngle.RIGHT_FRONT -> "請將右前輪與前車牌對齊藍色框"
+                InspectionAngle.LEFT_FRONT -> "請將左前輪與前車牌對齊藍色框"
+                InspectionAngle.RIGHT_REAR -> "請將右後輪與後車牌對齊藍色框"
+                InspectionAngle.LEFT_REAR -> "請將左後輪與後車牌對齊藍色框"
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -367,7 +375,7 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                     .padding(vertical = 8.dp)
             ) {
                 Text(
-                    text = "請將輪框與車牌對齊藍色框",
+                    text = hintText,
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
@@ -572,12 +580,22 @@ fun PlateAndWheelAlignmentOverlay(
         val h = size.height
         val stroke = Stroke(width = 2.5f.dp.toPx(), pathEffect = dashEffect)
 
-        // 1. 車牌對齊框 (長方形藍色虛線)
-        val plateWidth = w * 0.32f
-        val plateHeight = h * 0.12f
-        val plateLeft = w * 0.20f
-        val plateTop = h * 0.62f
+        // 根據 4 種不同拍攝角度設定專屬的「車牌」與「輪框」對齊座標
+        val (plateLeft, plateTop, plateWidth, plateHeight) = when (angle) {
+            InspectionAngle.RIGHT_FRONT -> listOf(w * 0.18f, h * 0.62f, w * 0.32f, h * 0.12f)
+            InspectionAngle.LEFT_FRONT  -> listOf(w * 0.50f, h * 0.62f, w * 0.32f, h * 0.12f)
+            InspectionAngle.RIGHT_REAR  -> listOf(w * 0.22f, h * 0.58f, w * 0.30f, h * 0.11f)
+            InspectionAngle.LEFT_REAR   -> listOf(w * 0.48f, h * 0.58f, w * 0.30f, h * 0.11f)
+        }
 
+        val (tireLeft, tireTop, tireWidth, tireHeight) = when (angle) {
+            InspectionAngle.RIGHT_FRONT -> listOf(w * 0.70f, h * 0.48f, w * 0.18f, h * 0.30f)
+            InspectionAngle.LEFT_FRONT  -> listOf(w * 0.12f, h * 0.48f, w * 0.18f, h * 0.30f)
+            InspectionAngle.RIGHT_REAR  -> listOf(w * 0.67f, h * 0.50f, w * 0.18f, h * 0.28f)
+            InspectionAngle.LEFT_REAR   -> listOf(w * 0.15f, h * 0.50f, w * 0.18f, h * 0.28f)
+        }
+
+        // 1. 繪製對應角度的車牌對齊虛線框
         drawRoundRect(
             color = guideColor,
             topLeft = Offset(plateLeft, plateTop),
@@ -586,12 +604,7 @@ fun PlateAndWheelAlignmentOverlay(
             style = stroke
         )
 
-        // 2. 輪框/輪胎對齊框 (橢圓形藍色虛線)
-        val tireWidth = w * 0.18f
-        val tireHeight = h * 0.30f
-        val tireLeft = w * 0.70f
-        val tireTop = h * 0.48f
-
+        // 2. 繪製對應角度的輪框/輪胎對齊虛線框
         drawOval(
             color = guideColor,
             topLeft = Offset(tireLeft, tireTop),
