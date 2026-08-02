@@ -1,7 +1,11 @@
 package com.example.car_detect
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.graphics.RectF
+import android.media.ExifInterface
 import android.widget.Toast
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
@@ -43,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,7 +58,9 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -70,7 +77,7 @@ import com.google.mlkit.vision.objects.ObjectDetection
 import com.google.mlkit.vision.objects.ObjectDetector
 import com.google.mlkit.vision.objects.defaults.ObjectDetectorOptions
 import java.io.File
-import java.text.SimpleDateFormaㄌ
+import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -101,6 +108,9 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
     var selectedAngleIndex by remember { mutableIntStateOf(0) } // 預設: 右前方
     var detectionStatus by remember { mutableStateOf(DetectionStatus.NO_CAR) }
     var showAlignmentDialog by remember { mutableStateOf(false) }
+
+    // 儲存已拍攝照片的 Bitmap map
+    val capturedPhotos = remember { mutableStateMapOf<InspectionAngle, ImageBitmap>() }
 
     val imageCapture = remember { ImageCapture.Builder().build() }
     val previewView = remember { PreviewView(context) }
@@ -185,6 +195,14 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
         }
     }
 
+    // 執行拍照的封裝函式
+    val doTakePhoto = {
+        val currentAngle = InspectionAngle.entries[selectedAngleIndex]
+        takePhoto(context, imageCapture, currentAngle) { angle, bitmap ->
+            capturedPhotos[angle] = bitmap
+        }
+    }
+
     // 未對齊確認 Dialog
     if (showAlignmentDialog) {
         AlertDialog(
@@ -196,7 +214,7 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
             confirmButton = {
                 TextButton(onClick = {
                     showAlignmentDialog = false
-                    takePhoto(context, imageCapture, InspectionAngle.entries[selectedAngleIndex])
+                    doTakePhoto()
                 }) {
                     Text("強制拍照", color = Color(0xFFFF6B6B))
                 }
@@ -402,7 +420,11 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                                         if (selectedAngleIndex == index) Color(0xFF111111) else Color(0xFFAAAAAA),
                                         CircleShape
                                     )
-                                    .background(if (selectedAngleIndex == index) Color(0xFF111111) else Color.Transparent)
+                                    .background(
+                                        if (capturedPhotos.containsKey(angle)) Color(0xFF4CAF50)
+                                        else if (selectedAngleIndex == index) Color(0xFF111111)
+                                        else Color.Transparent
+                                    )
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
@@ -420,13 +442,15 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 4 個角度的縮圖卡片
+            // 4 個角度的縮圖卡片 (若已拍照則即時更新為拍攝照片)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 InspectionAngle.entries.forEachIndexed { index, angle ->
                     val isSelected = (selectedAngleIndex == index)
+                    val capturedBitmap = capturedPhotos[angle]
+
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -441,12 +465,41 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                             .clickable { selectedAngleIndex = index },
                         contentAlignment = Alignment.Center
                     ) {
-                        Image(
-                            painter = painterResource(id = angle.imageResId),
-                            contentDescription = angle.label,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
+                        if (capturedBitmap != null) {
+                            // 已拍照：即時顯示拍攝的照片縮圖
+                            Image(
+                                bitmap = capturedBitmap,
+                                contentDescription = angle.label,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+
+                            // 右上角綠色勾勾標籤
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(4.dp)
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF4CAF50)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "✓",
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        } else {
+                            // 未拍照：顯示預設 3D 示範縮圖
+                            Image(
+                                painter = painterResource(id = angle.imageResId),
+                                contentDescription = angle.label,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                     }
                 }
             }
@@ -493,11 +546,7 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                         if (detectionStatus != DetectionStatus.ALIGNED) {
                             showAlignmentDialog = true
                         } else {
-                            takePhoto(
-                                context,
-                                imageCapture,
-                                InspectionAngle.entries[selectedAngleIndex]
-                            )
+                            doTakePhoto()
                         }
                     }
             )
@@ -631,8 +680,45 @@ private fun calculateIoU(boxA: RectF, boxB: RectF): Float {
     return if (unionArea > 0f) interArea / unionArea else 0f
 }
 
-// ===== 拍照儲存 =====
-private fun takePhoto(context: Context, imageCapture: ImageCapture, angle: InspectionAngle) {
+// ===== 自動修正 EXIF 轉向的照片解碼 =====
+private fun loadOrientedBitmap(filePath: String): Bitmap? {
+    val bitmap = BitmapFactory.decodeFile(filePath) ?: return null
+    return try {
+        val exif = ExifInterface(filePath)
+        val orientation = exif.getAttributeInt(
+            ExifInterface.TAG_ORIENTATION,
+            ExifInterface.ORIENTATION_UNDEFINED
+        )
+        var degrees = when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+            else -> 0f
+        }
+        // 若 EXIF 無標記但點陣圖寬大於高（感光元件橫向儲存），修正旋轉 90 度以符合直立預覽
+        if (degrees == 0f && bitmap.width > bitmap.height) {
+            degrees = 90f
+        }
+
+        if (degrees != 0f) {
+            val matrix = Matrix()
+            matrix.postRotate(degrees)
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        } else {
+            bitmap
+        }
+    } catch (e: Exception) {
+        bitmap
+    }
+}
+
+// ===== 拍照儲存與縮圖回傳 =====
+private fun takePhoto(
+    context: Context,
+    imageCapture: ImageCapture,
+    angle: InspectionAngle,
+    onPhotoCaptured: (InspectionAngle, ImageBitmap) -> Unit
+) {
     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
     val photoFile = File(context.filesDir, "CAR_${angle.name}_${timestamp}.jpg")
 
@@ -643,7 +729,12 @@ private fun takePhoto(context: Context, imageCapture: ImageCapture, angle: Inspe
         ContextCompat.getMainExecutor(context),
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                Toast.makeText(context, "✅ [${angle.label}] 照片已儲存: ${photoFile.name}", Toast.LENGTH_SHORT).show()
+                // 自動轉正相機 EXIF 照片位圖並更新至 Compose 縮圖
+                val bitmap = loadOrientedBitmap(photoFile.absolutePath)
+                if (bitmap != null) {
+                    onPhotoCaptured(angle, bitmap.asImageBitmap())
+                }
+                Toast.makeText(context, "✅ [${angle.label}] 照片已拍攝並更新縮圖！", Toast.LENGTH_SHORT).show()
             }
 
             override fun onError(exception: ImageCaptureException) {
