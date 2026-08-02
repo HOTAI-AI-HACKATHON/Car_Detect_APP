@@ -68,8 +68,9 @@ class MainActivity : ComponentActivity() {
 
 // 定義 APP 畫面狀態
 enum class Screen {
-    PICKUP_HOME,  // 進入 APP 的「取車拍照」首頁
-    CAMERA        // 相機拍攝畫面
+    PICKUP_HOME,         // 進入 APP 的「取車拍照」首頁
+    CAMERA,              // 4 角度車身對齊拍照畫面
+    SCRATCH_INSPECTION   // 額外傷痕/刮痕拍照畫面
 }
 
 @Composable
@@ -117,6 +118,21 @@ fun AppNavigation() {
         Screen.CAMERA -> {
             CameraScreen(
                 onBackClick = {
+                    currentScreen = Screen.PICKUP_HOME
+                },
+                onNextStepClick = {
+                    currentScreen = Screen.SCRATCH_INSPECTION
+                }
+            )
+        }
+
+        Screen.SCRATCH_INSPECTION -> {
+            ScratchInspectionScreen(
+                onBackClick = {
+                    currentScreen = Screen.CAMERA
+                },
+                onCompleteClick = {
+                    Toast.makeText(context, "🎉 車體取車拍照與傷痕檢驗全數完成！", Toast.LENGTH_LONG).show()
                     currentScreen = Screen.PICKUP_HOME
                 }
             )
@@ -202,18 +218,18 @@ fun PickupHomeScreen(
             ) {
                 Text(
                     text = "檢查車輛四周",
-                    fontSize = 24.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111111),
-                    modifier = Modifier.padding(bottom = 10.dp)
+                    modifier = Modifier.padding(bottom = 6.dp)
                 )
 
                 Text(
                     text = "請仔細檢查有無損傷、凹陷等，\n完善拍照可保障自身權益。",
-                    fontSize = 14.sp,
+                    fontSize = 12.sp,
                     color = Color(0xFF777777),
                     textAlign = TextAlign.Center,
-                    lineHeight = 22.sp
+                    lineHeight = 18.sp
                 )
             }
 
@@ -242,10 +258,10 @@ fun PickupHomeScreen(
             ) {
                 Text(
                     text = "車號：RFH-8052",
-                    fontSize = 21.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111111),
-                    modifier = Modifier.padding(bottom = 24.dp)
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
 
                 // 紅色主按鈕：確認取車
@@ -253,15 +269,15 @@ fun PickupHomeScreen(
                     onClick = onConfirmPickupClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(27.dp),
+                        .height(48.dp),
+                    shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFD30015)
                     )
                 ) {
                     Text(
                         text = "確認取車",
-                        fontSize = 18.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )

@@ -100,7 +100,10 @@ enum class DetectionStatus {
 }
 
 @Composable
-fun CameraScreen(onBackClick: (() -> Unit)? = null) {
+fun CameraScreen(
+    onBackClick: (() -> Unit)? = null,
+    onNextStepClick: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -195,11 +198,15 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
         }
     }
 
-    // 執行拍照的封裝函式
+    // 執行拍照的封裝函式 (拍照成功自動推進下一個尚未拍攝的角度)
     val doTakePhoto = {
         val currentAngle = InspectionAngle.entries[selectedAngleIndex]
         takePhoto(context, imageCapture, currentAngle) { angle, bitmap ->
             capturedPhotos[angle] = bitmap
+            val uncapturedIndex = InspectionAngle.entries.indexOfFirst { !capturedPhotos.containsKey(it) }
+            if (uncapturedIndex != -1) {
+                selectedAngleIndex = uncapturedIndex
+            }
         }
     }
 
@@ -207,21 +214,21 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
     if (showAlignmentDialog) {
         AlertDialog(
             onDismissRequest = { showAlignmentDialog = false },
-            title = { Text("⚠️ 對齊提醒") },
+            title = { Text("⚠️ 對齊提醒", fontWeight = FontWeight.Bold) },
             text = {
-                Text("車牌與輪框尚未對準藍色輔助框，建議對齊後拍攝以利識別。\n\n是否仍要拍攝？", lineHeight = 22.sp)
+                Text("車牌與輪框尚未對準藍色輔助框，建議對齊後拍攝以利識別。\n\n是否仍要拍攝？", lineHeight = 22.sp, color = Color(0xFF1A1A1A))
             },
             confirmButton = {
                 TextButton(onClick = {
                     showAlignmentDialog = false
                     doTakePhoto()
                 }) {
-                    Text("強制拍照", color = Color(0xFFFF6B6B))
+                    Text("強制拍照", color = Color(0xFFD7000F), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAlignmentDialog = false }) {
-                    Text("重新對齊")
+                    Text("重新對齊", color = Color(0xFF727272))
                 }
             }
         )
@@ -230,7 +237,7 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F7))
+            .background(Color(0xFFF2F3F5))
     ) {
         // 1. 頂部列：拍照/錄影 切換 + 返回按鈕 (純白延伸至狀態欄)
         Surface(
@@ -245,7 +252,7 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .height(52.dp)
                 ) {
                     if (onBackClick != null) {
                         IconButton(
@@ -255,7 +262,7 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_arrow_back),
                                 contentDescription = "返回",
-                                tint = Color(0xFF333333),
+                                tint = Color(0xFF1A1A1A),
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -274,9 +281,9 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                         ) {
                             Text(
                                 text = "拍照",
-                                fontSize = 16.sp,
+                                fontSize = 14.sp,
                                 fontWeight = if (activeTab == 0) FontWeight.Bold else FontWeight.Normal,
-                                color = if (activeTab == 0) Color(0xFF111111) else Color(0xFF888888)
+                                color = if (activeTab == 0) Color(0xFF1A1A1A) else Color(0xFF757575)
                             )
                             if (activeTab == 0) {
                                 Box(
@@ -284,7 +291,7 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                                         .padding(top = 4.dp)
                                         .width(28.dp)
                                         .height(3.dp)
-                                        .background(Color(0xFFD30015), RoundedCornerShape(2.dp))
+                                        .background(Color(0xFFD7000F), RoundedCornerShape(2.dp))
                                 )
                             }
                         }
@@ -297,9 +304,9 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                         ) {
                             Text(
                                 text = "錄影",
-                                fontSize = 16.sp,
+                                fontSize = 14.sp,
                                 fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Normal,
-                                color = if (activeTab == 1) Color(0xFF111111) else Color(0xFF888888)
+                                color = if (activeTab == 1) Color(0xFF1A1A1A) else Color(0xFF757575)
                             )
                             if (activeTab == 1) {
                                 Box(
@@ -307,33 +314,34 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                                         .padding(top = 4.dp)
                                         .width(28.dp)
                                         .height(3.dp)
-                                        .background(Color(0xFFD30015), RoundedCornerShape(2.dp))
+                                        .background(Color(0xFFD7000F), RoundedCornerShape(2.dp))
                                 )
                             }
                         }
                     }
                 }
+                HorizontalDivider(color = Color(0xFFE5E5E8), thickness = 1.dp)
             }
         }
 
-        // 2. 主標題區塊
+        // 2. 主標題區塊 (適度縮小字級)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp),
+                .padding(vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "車身拍照",
-                fontSize = 22.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111111)
+                color = Color(0xFF1A1A1A)
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "請拍攝車輛四周（含車牌）",
-                fontSize = 13.sp,
-                color = Color(0xFF777777)
+                text = "請拍攝車輛四周 (含車牌)",
+                fontSize = 12.sp,
+                color = Color(0xFF727272)
             )
         }
 
@@ -358,7 +366,7 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                 angle = InspectionAngle.entries[selectedAngleIndex]
             )
 
-            // 相機視窗下方動態提示條 (根據選擇角度提示對應輪胎與車牌)
+            // 相機視窗下方提示條
             val currentAngle = InspectionAngle.entries[selectedAngleIndex]
             val hintText = when (currentAngle) {
                 InspectionAngle.RIGHT_FRONT -> "請將右前輪與前車牌對齊藍色框"
@@ -371,13 +379,13 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .background(Color.Black.copy(alpha = 0.55f))
-                    .padding(vertical = 8.dp)
+                    .background(Color.Black.copy(alpha = 0.60f))
+                    .padding(vertical = 6.dp)
             ) {
                 Text(
                     text = hintText,
                     color = Color.White,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -385,18 +393,18 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // 4. 系統提示說明
         Text(
             text = "系統將自動識別車輛與拍攝並進入下一階段",
-            fontSize = 12.sp,
-            color = Color(0xFF888888),
+            fontSize = 11.sp,
+            color = Color(0xFF727272),
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // 5. 角度階段選擇器 (右前方 -> 左前方 -> 右後方 -> 左後方)
         Column(
@@ -404,7 +412,7 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         ) {
-            // 階段文字指示 (與下方 4 個卡片 1:1 精準對齊置中)
+            // 階段文字與單選圓點
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -425,13 +433,13 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                                     .clip(CircleShape)
                                     .border(
                                         1.5.dp,
-                                        if (selectedAngleIndex == index) Color(0xFF111111) else Color(0xFFAAAAAA),
+                                        if (selectedAngleIndex == index || capturedPhotos.containsKey(angle)) Color(0xFF1A1A1A) else Color(0xFF7B7B7F),
                                         CircleShape
                                     )
                                     .background(
                                         if (capturedPhotos.containsKey(angle)) Color(0xFF4CAF50)
-                                        else if (selectedAngleIndex == index) Color(0xFF111111)
-                                        else Color.Transparent
+                                        else if (selectedAngleIndex == index) Color(0xFF1A1A1A)
+                                        else Color.White.copy(alpha = 0.8f)
                                     )
                             )
                             Spacer(modifier = Modifier.width(3.dp))
@@ -439,7 +447,7 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                                 text = angle.label,
                                 fontSize = 11.5.sp,
                                 fontWeight = if (selectedAngleIndex == index) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedAngleIndex == index) Color(0xFF111111) else Color(0xFF888888),
+                                color = if (selectedAngleIndex == index) Color(0xFF1A1A1A) else Color(0xFF727272),
                                 maxLines = 1,
                                 softWrap = false
                             )
@@ -448,9 +456,9 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // 4 個角度的縮圖卡片 (若已拍照則即時更新為拍攝照片)
+            // 4 個角度的縮圖卡片
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -464,17 +472,16 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                             .weight(1f)
                             .aspectRatio(1f)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF333333))
+                            .background(Color(0xFF2F2F30))
                             .border(
-                                width = if (isSelected) 2.5.dp else 0.dp,
-                                color = if (isSelected) Color(0xFF00A2FF) else Color.Transparent,
+                                width = if (isSelected) 2.dp else 0.dp,
+                                color = if (isSelected) Color(0xFF1DA6D0) else Color.Transparent,
                                 shape = RoundedCornerShape(8.dp)
                             )
                             .clickable { selectedAngleIndex = index },
                         contentAlignment = Alignment.Center
                     ) {
                         if (capturedBitmap != null) {
-                            // 已拍照：即時顯示拍攝的照片縮圖
                             Image(
                                 bitmap = capturedBitmap,
                                 contentDescription = angle.label,
@@ -482,11 +489,10 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                                 contentScale = ContentScale.Crop
                             )
 
-                            // 右上角綠色勾勾標籤
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
-                                    .padding(4.dp)
+                                    .padding(3.dp)
                                     .size(16.dp)
                                     .clip(CircleShape)
                                     .background(Color(0xFF4CAF50)),
@@ -500,7 +506,6 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                                 )
                             }
                         } else {
-                            // 未拍照：顯示預設 3D 示範縮圖
                             Image(
                                 painter = painterResource(id = angle.imageResId),
                                 contentDescription = angle.label,
@@ -521,33 +526,35 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "車號：RFH-8052",
-                fontSize = 16.sp,
+                text = "車號 : RFH-8052",
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF222222),
+                color = Color(0xFF1A1A1A),
                 modifier = Modifier
-                    .background(Color(0xFFE2E2E6), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .background(Color(0xFFE4C17F).copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // 7. 底部快門按鈕區
+        // 7. 底部快門按鈕區 + 略過/下一步膠囊按鈕
+        val allCaptured = InspectionAngle.entries.all { capturedPhotos.containsKey(it) }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White)
-                .padding(vertical = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
-            // 大圓形快門按鈕
+            // 大圓形快門按鈕 (居中)
             Box(
                 modifier = Modifier
-                    .size(68.dp)
+                    .size(62.dp)
                     .clip(CircleShape)
-                    .border(4.dp, Color(0xFFE0E0E0), CircleShape)
-                    .padding(4.dp)
+                    .border(3.5.dp, Color(0xFFE0E0E0), CircleShape)
+                    .padding(3.5.dp)
                     .clip(CircleShape)
                     .background(Color.White)
                     .clickable {
@@ -558,11 +565,30 @@ fun CameraScreen(onBackClick: (() -> Unit)? = null) {
                         }
                     }
             )
+
+            // 右下角「下一步 / 略過」紅色膠囊按鈕
+            if (onNextStepClick != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .clip(RoundedCornerShape(80.dp))
+                        .background(if (allCaptured) Color(0xFFD7000F) else Color(0xFF888888))
+                        .clickable { onNextStepClick() }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = if (allCaptured) "下一步 ➔" else "略過",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }
 
-// ===== 車牌與輪框對齊藍色虛線框 (Keypoint Overlay) =====
+// ===== 車牌與輪框對齊藍色虛線框 (Keypoint Overlay - Figma 蔚藍 #1DA6D0) =====
 @Composable
 fun PlateAndWheelAlignmentOverlay(
     detectionStatus: DetectionStatus,
@@ -570,15 +596,15 @@ fun PlateAndWheelAlignmentOverlay(
 ) {
     val guideColor = when (detectionStatus) {
         DetectionStatus.ALIGNED -> Color(0xFF4CAF50)    // 已對齊變綠色
-        else -> Color(0xFF38B6FF)                        // 預設特徵對齊藍色
+        else -> Color(0xFF1DA6D0)                        // Figma iRent 蔚藍色對齊框
     }
 
-    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 8f), 0f)
+    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 10f), 0f)
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        val stroke = Stroke(width = 2.5f.dp.toPx(), pathEffect = dashEffect)
+        val stroke = Stroke(width = 3.dp.toPx(), pathEffect = dashEffect)
 
         // 根據 4 種不同拍攝角度設定專屬的「車牌」與「輪框」對齊座標
         val (plateLeft, plateTop, plateWidth, plateHeight) = when (angle) {
@@ -600,7 +626,7 @@ fun PlateAndWheelAlignmentOverlay(
             color = guideColor,
             topLeft = Offset(plateLeft, plateTop),
             size = Size(plateWidth, plateHeight),
-            cornerRadius = CornerRadius(6f, 6f),
+            cornerRadius = CornerRadius(8f, 8f),
             style = stroke
         )
 
@@ -708,7 +734,6 @@ private fun loadOrientedBitmap(filePath: String): Bitmap? {
             ExifInterface.ORIENTATION_ROTATE_270 -> 270f
             else -> 0f
         }
-        // 若 EXIF 無標記但點陣圖寬大於高（感光元件橫向儲存），修正旋轉 90 度以符合直立預覽
         if (degrees == 0f && bitmap.width > bitmap.height) {
             degrees = 90f
         }
@@ -742,7 +767,6 @@ private fun takePhoto(
         ContextCompat.getMainExecutor(context),
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                // 自動轉正相機 EXIF 照片位圖並更新至 Compose 縮圖
                 val bitmap = loadOrientedBitmap(photoFile.absolutePath)
                 if (bitmap != null) {
                     onPhotoCaptured(angle, bitmap.asImageBitmap())
