@@ -81,6 +81,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
+import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 
@@ -750,7 +751,7 @@ private fun loadOrientedBitmap(filePath: String): Bitmap? {
     }
 }
 
-// ===== 拍照儲存與縮圖回傳 =====
+// ===== 拍照儲存、上傳 Python API 品質/YOLO 檢測與縮圖回傳 =====
 private fun takePhoto(
     context: Context,
     imageCapture: ImageCapture,
@@ -767,11 +768,36 @@ private fun takePhoto(
         ContextCompat.getMainExecutor(context),
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                val bitmap = loadOrientedBitmap(photoFile.absolutePath)
-                if (bitmap != null) {
-                    onPhotoCaptured(angle, bitmap.asImageBitmap())
+                val originalBitmap = loadOrientedBitmap(photoFile.absolutePath) ?: return
+
+                Toast.makeText(context, "🔍 上傳 API 品質檢測與 YOLO 車損辨識中...", Toast.LENGTH_SHORT).show()
+
+                // 非同步上傳 Python FastAPI 進行 OpenCV 品質與 YOLO 檢測
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                    val result = CarDamageApiService.uploadAndPredict(photoFile)
+                    when (result.status) {
+                        "success" -> {
+                            val finalBitmap = result.annotatedBitmap ?: originalBitmap.asImageBitmap()
+                            onPhotoCaptured(angle, finalBitmap)
+                            val msg = if (result.damageCount > 0) {
+                                "✅ 辨識成功！檢測出 ${result.damageCount} 處車損"
+                            } else {
+                                "✅ 照片品質良好，未發現顯著車損"
+                            }
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                        }
+                        "rejected" -> {
+                            // 品質檢測未通過 (如過度模糊、過暗、過曝)
+                            onPhotoCaptured(angle, originalBitmap.asImageBitmap())
+                            Toast.makeText(context, "⚠️ 品質退回: ${result.message}", Toast.LENGTH_LONG).show()
+                        }
+                        else -> {
+                            // API 未啟動或連線失敗，優雅降級使用原圖
+                            onPhotoCaptured(angle, originalBitmap.asImageBitmap())
+                            Toast.makeText(context, "✅ 已拍攝！(本地 API 未連線)", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
-                Toast.makeText(context, "✅ [${angle.label}] 照片已拍攝並更新縮圖！", Toast.LENGTH_SHORT).show()
             }
 
             override fun onError(exception: ImageCaptureException) {

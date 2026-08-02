@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -417,10 +418,32 @@ private fun takeScratchPhotoFile(
         ContextCompat.getMainExecutor(context),
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                val bitmap = loadScratchOrientedBitmap(photoFile.absolutePath)
-                if (bitmap != null) {
-                    onPhotoCaptured(bitmap.asImageBitmap())
-                    Toast.makeText(context, "✅ 已新增傷痕特寫照片", Toast.LENGTH_SHORT).show()
+                val originalBitmap = loadScratchOrientedBitmap(photoFile.absolutePath) ?: return
+
+                Toast.makeText(context, "🔍 上傳 API 品質檢測與 YOLO 車損辨識中...", Toast.LENGTH_SHORT).show()
+
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                    val result = CarDamageApiService.uploadAndPredict(photoFile)
+                    when (result.status) {
+                        "success" -> {
+                            val finalBitmap = result.annotatedBitmap ?: originalBitmap.asImageBitmap()
+                            onPhotoCaptured(finalBitmap)
+                            val msg = if (result.damageCount > 0) {
+                                "✅ 傷痕辨識成功！發現 ${result.damageCount} 處車損"
+                            } else {
+                                "✅ 已新增傷痕特寫照片"
+                            }
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                        }
+                        "rejected" -> {
+                            onPhotoCaptured(originalBitmap.asImageBitmap())
+                            Toast.makeText(context, "⚠️ 品質退回: ${result.message}", Toast.LENGTH_LONG).show()
+                        }
+                        else -> {
+                            onPhotoCaptured(originalBitmap.asImageBitmap())
+                            Toast.makeText(context, "✅ 已新增傷痕照片 (API 未連線)", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             }
 
