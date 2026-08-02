@@ -37,20 +37,28 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -112,6 +120,17 @@ fun CameraScreen(
     var selectedAngleIndex by remember { mutableIntStateOf(0) } // 預設: 右前方
     var detectionStatus by remember { mutableStateOf(DetectionStatus.NO_CAR) }
     var showAlignmentDialog by remember { mutableStateOf(false) }
+    var qualityWarningBannerText by remember { mutableStateOf<String?>(null) }
+    var displayedBannerText by remember { mutableStateOf("") }
+
+    // 當品質警示條跳出後，記錄欲顯示文字並於 2 秒後自動觸發淡出漸隱消失
+    LaunchedEffect(qualityWarningBannerText) {
+        if (qualityWarningBannerText != null) {
+            displayedBannerText = qualityWarningBannerText!!
+            delay(2000)
+            qualityWarningBannerText = null
+        }
+    }
 
     // 儲存已拍攝照片的 Bitmap map
     val capturedPhotos = remember { mutableStateMapOf<InspectionAngle, ImageBitmap>() }
@@ -202,13 +221,28 @@ fun CameraScreen(
     // 執行拍照的封裝函式 (拍照成功自動推進下一個尚未拍攝的角度)
     val doTakePhoto = {
         val currentAngle = InspectionAngle.entries[selectedAngleIndex]
-        takePhoto(context, imageCapture, currentAngle) { angle, bitmap ->
-            capturedPhotos[angle] = bitmap
-            val uncapturedIndex = InspectionAngle.entries.indexOfFirst { !capturedPhotos.containsKey(it) }
-            if (uncapturedIndex != -1) {
-                selectedAngleIndex = uncapturedIndex
+        qualityWarningBannerText = null // 重新拍照時先清除之前的警示條
+        takePhoto(
+            context = context,
+            imageCapture = imageCapture,
+            angle = currentAngle,
+            onPhotoCaptured = { angle, bitmap ->
+                capturedPhotos[angle] = bitmap
+                val uncapturedIndex = InspectionAngle.entries.indexOfFirst { !capturedPhotos.containsKey(it) }
+                if (uncapturedIndex != -1) {
+                    selectedAngleIndex = uncapturedIndex
+                }
+            },
+            onQualityRejected = { errorMsg ->
+                // 解析退回理由，並直接於相機畫面中央浮現 Figma 設計規範之紅色警示條（無需點擊任何按鈕）
+                qualityWarningBannerText = when {
+                    errorMsg.contains("模糊") -> "畫面過於模糊，請重新拍攝"
+                    errorMsg.contains("暗") -> "畫面過暗，請重新拍攝"
+                    errorMsg.contains("過曝") || errorMsg.contains("反光") -> "畫面過曝，請重新拍攝"
+                    else -> "畫面不清晰，請重新拍攝"
+                }
             }
-        }
+        )
     }
 
     // 未對齊確認 Dialog
@@ -366,6 +400,29 @@ fun CameraScreen(
                 detectionStatus = detectionStatus,
                 angle = InspectionAngle.entries[selectedAngleIndex]
             )
+
+            // Figma 畫面過於模糊 / 過暗 / 過曝 紅色膠囊警示條 (浮動於相機視窗正中央，跳出後逐漸淡出消失)
+            androidx.compose.animation.AnimatedVisibility(
+                visible = (qualityWarningBannerText != null),
+                enter = fadeIn(animationSpec = tween(300)),
+                exit = fadeOut(animationSpec = tween(700)),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(80.dp))
+                        .background(Color(0xFFD7000F))
+                        .padding(horizontal = 24.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = displayedBannerText,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
 
             // 相機視窗下方提示條
             val currentAngle = InspectionAngle.entries[selectedAngleIndex]
@@ -756,7 +813,8 @@ private fun takePhoto(
     context: Context,
     imageCapture: ImageCapture,
     angle: InspectionAngle,
-    onPhotoCaptured: (InspectionAngle, ImageBitmap) -> Unit
+    onPhotoCaptured: (InspectionAngle, ImageBitmap) -> Unit,
+    onQualityRejected: (String) -> Unit
 ) {
     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
     val photoFile = File(context.filesDir, "CAR_${angle.name}_${timestamp}.jpg")
@@ -769,8 +827,6 @@ private fun takePhoto(
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                 val originalBitmap = loadOrientedBitmap(photoFile.absolutePath) ?: return
-
-                Toast.makeText(context, "🔍 上傳 API 品質檢測與 YOLO 車損辨識中...", Toast.LENGTH_SHORT).show()
 
                 // 非同步上傳 Python FastAPI 進行 OpenCV 品質與 YOLO 檢測
                 kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
@@ -787,9 +843,8 @@ private fun takePhoto(
                             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                         }
                         "rejected" -> {
-                            // 品質檢測未通過 (如過度模糊、過暗、過曝)
-                            onPhotoCaptured(angle, originalBitmap.asImageBitmap())
-                            Toast.makeText(context, "⚠️ 品質退回: ${result.message}", Toast.LENGTH_LONG).show()
+                            // 品質檢測未通過 (如畫面過於模糊、過暗、過曝)，攔截不儲存，並跳出 Figma 錯誤彈窗要求重新拍攝
+                            onQualityRejected(result.message)
                         }
                         else -> {
                             // API 未啟動或連線失敗，優雅降級使用原圖

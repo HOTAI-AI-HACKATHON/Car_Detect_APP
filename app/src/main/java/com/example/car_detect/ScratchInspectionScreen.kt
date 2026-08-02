@@ -42,11 +42,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,6 +92,17 @@ fun ScratchInspectionScreen(
 
     // 已拍攝的傷痕照片列表
     val scratchPhotos = remember { mutableStateListOf<ImageBitmap>() }
+    var qualityWarningBannerText by remember { mutableStateOf<String?>(null) }
+    var displayedBannerText by remember { mutableStateOf("") }
+
+    // 當品質警示條跳出後，記錄欲顯示文字並於 2 秒後自動觸發淡出漸隱消失
+    LaunchedEffect(qualityWarningBannerText) {
+        if (qualityWarningBannerText != null) {
+            displayedBannerText = qualityWarningBannerText!!
+            delay(2000)
+            qualityWarningBannerText = null
+        }
+    }
 
     val imageCapture = remember { ImageCapture.Builder().build() }
     val previewView = remember { PreviewView(context) }
@@ -118,9 +137,22 @@ fun ScratchInspectionScreen(
 
     // 拍攝傷痕照片
     val takeScratchPhoto = {
-        takeScratchPhotoFile(context, imageCapture) { bitmap ->
-            scratchPhotos.add(bitmap)
-        }
+        qualityWarningBannerText = null
+        takeScratchPhotoFile(
+            context = context,
+            imageCapture = imageCapture,
+            onPhotoCaptured = { bitmap ->
+                scratchPhotos.add(bitmap)
+            },
+            onQualityRejected = { errorMsg ->
+                qualityWarningBannerText = when {
+                    errorMsg.contains("模糊") -> "畫面過於模糊，請重新拍攝"
+                    errorMsg.contains("暗") -> "畫面過暗，請重新拍攝"
+                    errorMsg.contains("過曝") || errorMsg.contains("反光") -> "畫面過曝，請重新拍攝"
+                    else -> "畫面不清晰，請重新拍攝"
+                }
+            }
+        )
     }
 
     Column(
@@ -219,6 +251,29 @@ fun ScratchInspectionScreen(
 
             // 特寫準星對焦輔助線
             ScratchFocusReticleOverlay()
+
+            // Figma 畫面過於模糊 / 過暗 / 過曝 紅色膠囊警示條 (浮動於相機視窗正中央，跳出後逐漸淡出消失)
+            androidx.compose.animation.AnimatedVisibility(
+                visible = (qualityWarningBannerText != null),
+                enter = fadeIn(animationSpec = tween(300)),
+                exit = fadeOut(animationSpec = tween(700)),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(80.dp))
+                        .background(Color(0xFFD7000F))
+                        .padding(horizontal = 24.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = displayedBannerText,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
 
             // 視窗下方提示條
             Box(
@@ -406,7 +461,8 @@ fun ScratchFocusReticleOverlay() {
 private fun takeScratchPhotoFile(
     context: Context,
     imageCapture: ImageCapture,
-    onPhotoCaptured: (ImageBitmap) -> Unit
+    onPhotoCaptured: (ImageBitmap) -> Unit,
+    onQualityRejected: (String) -> Unit
 ) {
     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
     val photoFile = File(context.filesDir, "SCRATCH_${timestamp}.jpg")
@@ -419,8 +475,6 @@ private fun takeScratchPhotoFile(
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                 val originalBitmap = loadScratchOrientedBitmap(photoFile.absolutePath) ?: return
-
-                Toast.makeText(context, "🔍 上傳 API 品質檢測與 YOLO 車損辨識中...", Toast.LENGTH_SHORT).show()
 
                 kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                     val result = CarDamageApiService.uploadAndPredict(photoFile)
@@ -436,8 +490,8 @@ private fun takeScratchPhotoFile(
                             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                         }
                         "rejected" -> {
-                            onPhotoCaptured(originalBitmap.asImageBitmap())
-                            Toast.makeText(context, "⚠️ 品質退回: ${result.message}", Toast.LENGTH_LONG).show()
+                            // 品質檢測退回 (畫面過於模糊、過暗、過曝)，攔截不加入相簿，觸發 Figma 彈窗要求重新拍攝
+                            onQualityRejected(result.message)
                         }
                         else -> {
                             onPhotoCaptured(originalBitmap.asImageBitmap())
