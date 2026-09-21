@@ -1,5 +1,6 @@
 package com.example.car_detect
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
@@ -37,15 +38,67 @@ data class ApiPredictResult(
 )
 
 object CarDamageApiService {
-    // 預設連線位置：Android 模擬器存取本機電腦的 IP 為 10.0.2.2
-    // 如果使用實體手機，請更換為電腦在區域網路的 IP (例如 http://192.168.1.100:8000)
-    var serverBaseUrl = "http://10.0.2.2:8000"
+    private const val PREFS_NAME = "CarDamageApiPrefs"
+    private const val KEY_SERVER_URL = "server_base_url"
+
+    // 預設支援：127.0.0.1 (ADB Reverse 模式) 或 10.0.2.2 (模擬器模式)
+    private var inMemoryUrl: String? = null
+
+    fun getServerUrl(context: Context? = null): String {
+        if (inMemoryUrl != null) return inMemoryUrl!!
+        if (context != null) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val savedUrl = prefs.getString(KEY_SERVER_URL, null)
+            if (!savedUrl.isNullOrBlank()) {
+                inMemoryUrl = savedUrl
+                return savedUrl
+            }
+        }
+        // 預設使用 127.0.0.1 (搭配 adb reverse 實體機/模擬器皆通)
+        return "http://127.0.0.1:8000"
+    }
+
+    fun setServerUrl(context: Context, newUrl: String) {
+        val formattedUrl = if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
+            "http://$newUrl"
+        } else {
+            newUrl
+        }.trimEnd('/')
+
+        inMemoryUrl = formattedUrl
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(KEY_SERVER_URL, formattedUrl).apply()
+    }
 
     /**
      * 上傳照片至 FastAPI /predict 端點進行品質檢測與 YOLO 車損辨識
      */
-    suspend fun uploadAndPredict(imageFile: File): ApiPredictResult = withContext(Dispatchers.IO) {
-        val targetUrl = "${serverBaseUrl.trimEnd('/')}/predict"
+    suspend fun uploadAndPredict(imageFile: File, context: Context? = null): ApiPredictResult = withContext(Dispatchers.IO) {
+        val currentBaseUrl = getServerUrl(context)
+        
+        // 優先嘗試設定之 URL，若為 127.0.0.1 失敗則嘗試模擬器預設 10.0.2.2 進行備援
+        val urlsToTry = mutableListOf("${currentBaseUrl.trimEnd('/')}/predict")
+        if (currentBaseUrl.contains("127.0.0.1") || currentBaseUrl.contains("localhost")) {
+            urlsToTry.add("http://10.0.2.2:8000/predict")
+        } else if (currentBaseUrl.contains("10.0.2.2")) {
+            urlsToTry.add("http://127.0.0.1:8000/predict")
+        }
+
+        var lastException: Exception? = null
+        for (targetUrl in urlsToTry) {
+            val result = trySendRequest(imageFile, targetUrl)
+            if (result != null) {
+                return@withContext result
+            }
+        }
+
+        ApiPredictResult(
+            status = "error",
+            message = "無法連線至 API 伺服器 ($currentBaseUrl)。請確認後端已啟動或於 App 頂部設定正確電腦 IP"
+        )
+    }
+
+    private fun trySendRequest(imageFile: File, targetUrl: String): ApiPredictResult? {
         val boundary = "----WebKitFormBoundary" + System.currentTimeMillis()
         val lineEnd = "\r\n"
         val twoHyphens = "--"
@@ -58,19 +111,17 @@ object CarDamageApiService {
                 doInput = true
                 doOutput = true
                 useCaches = false
-                connectTimeout = 10000 // 10 秒連線逾時
-                readTimeout = 30000    // 30 秒推論逾時 (YOLO 重度推論)
+                connectTimeout = 5000  // 5 秒連線逾時
+                readTimeout = 30000    // 30 秒推論逾時
                 setRequestProperty("Connection", "Keep-Alive")
                 setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
             }
 
             DataOutputStream(connection.outputStream).use { output ->
-                // Multipart 檔案欄位 header
                 output.writeBytes(twoHyphens + boundary + lineEnd)
                 output.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\"${imageFile.name}\"$lineEnd")
                 output.writeBytes("Content-Type: image/jpeg$lineEnd$lineEnd")
 
-                // 寫入照片 Byte 資料
                 FileInputStream(imageFile).use { input ->
                     val buffer = ByteArray(4096)
                     var bytesRead: Int
@@ -95,7 +146,7 @@ object CarDamageApiService {
             if (responseCode != HttpURLConnection.HTTP_OK) {
                 val errorJson = runCatching { JSONObject(responseText) }.getOrNull()
                 val detail = errorJson?.optString("detail") ?: "伺服器回應錯誤 ($responseCode)"
-                return@withContext ApiPredictResult(
+                return ApiPredictResult(
                     status = "error",
                     message = detail
                 )
@@ -135,7 +186,7 @@ object CarDamageApiService {
                 }
             }
 
-            // Base64 解碼為標註完畢的照片 (YOLO plot annotated_image)
+            // Base64 解碼為標註完畢的照片
             var annotatedBitmap: ImageBitmap? = null
             if (json.has("annotated_image_base64")) {
                 val base64Str = json.optString("annotated_image_base64")
@@ -151,7 +202,7 @@ object CarDamageApiService {
                 }
             }
 
-            ApiPredictResult(
+            return ApiPredictResult(
                 status = status,
                 message = message,
                 blurScore = blurScore,
@@ -161,10 +212,7 @@ object CarDamageApiService {
                 annotatedBitmap = annotatedBitmap
             )
         } catch (e: Exception) {
-            ApiPredictResult(
-                status = "error",
-                message = "無法連線至本地 API 伺服器 (${e.localizedMessage ?: "請確認 Python FastAPI 已啟動"})"
-            )
+            return null
         } finally {
             connection?.disconnect()
         }

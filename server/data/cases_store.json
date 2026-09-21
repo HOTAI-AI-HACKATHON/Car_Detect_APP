@@ -1,0 +1,381 @@
+[
+  {
+    "order_id": "ORD-20260831-4201",
+    "plate_number": "RFH-8052",
+    "model": "Toyota Yaris Cross (白)",
+    "user_name": "行動租車用戶 (U0882)",
+    "start_time": "2026-08-31 12:49",
+    "end_time": "2026-08-31 12:49",
+    "insurance": true,
+    "status": "confirmed",
+    "ai_summary": "偵測到 12 處車損 (Broken part 63%)",
+    "damage_count": 12,
+    "max_confidence": 0.6321,
+    "reviewer": "客服專員 08",
+    "review_note": "【確認車損】收取 2500 元 (經客服專員核對，確認為本趟檢驗車況。)",
+    "penalty_amount": 2500,
+    "created_at": "2026-08-31 12:49:28",
+    "quality_metrics": {
+      "blur_score": 1671.84,
+      "mean_brightness": 160.09
+    },
+    "comparisons": {
+      "front_left": {
+        "has_damage": true,
+        "before_url": "http://localhost:8000/static/uploads/ORD-20260831-4201_orig.jpg",
+        "after_url": "http://localhost:8000/static/uploads/ORD-20260831-4201_anno.jpg",
+        "detections": [
+          {
+            "label": "Broken part",
+            "confidence": 0.6321,
+            "box": [
+              530.0,
+              291.0,
+              555.0,
+              458.0
+            ],
+            "pos": "X:530~555, Y:291~458"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.4586,
+            "box": [
+              65.0,
+              351.0,
+              377.0,
+              566.0
+            ],
+            "pos": "X:65~377, Y:351~566"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.4512,
+            "box": [
+              269.0,
+              364.0,
+              416.0,
+              489.0
+            ],
+            "pos": "X:269~416, Y:364~489"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.4504,
+            "box": [
+              352.0,
+              358.0,
+              419.0,
+              405.0
+            ],
+            "pos": "X:352~419, Y:358~405"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.3968,
+            "box": [
+              135.0,
+              356.0,
+              351.0,
+              465.0
+            ],
+            "pos": "X:135~351, Y:356~465"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.3745,
+            "box": [
+              110.0,
+              318.0,
+              425.0,
+              388.0
+            ],
+            "pos": "X:110~425, Y:318~388"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.2875,
+            "box": [
+              526.0,
+              317.0,
+              553.0,
+              455.0
+            ],
+            "pos": "X:526~553, Y:317~455"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.2576,
+            "box": [
+              64.0,
+              355.0,
+              197.0,
+              557.0
+            ],
+            "pos": "X:64~197, Y:355~557"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.2423,
+            "box": [
+              356.0,
+              292.0,
+              565.0,
+              468.0
+            ],
+            "pos": "X:356~565, Y:292~468"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.2278,
+            "box": [
+              111.0,
+              290.0,
+              471.0,
+              389.0
+            ],
+            "pos": "X:111~471, Y:290~389"
+          },
+          {
+            "label": "Dent",
+            "confidence": 0.1973,
+            "box": [
+              500.0,
+              320.0,
+              549.0,
+              460.0
+            ],
+            "pos": "X:500~549, Y:320~460"
+          },
+          {
+            "label": "Dent",
+            "confidence": 0.1872,
+            "box": [
+              267.0,
+              363.0,
+              415.0,
+              489.0
+            ],
+            "pos": "X:267~415, Y:363~489"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "order_id": "ORD-20260831-75B7",
+    "plate_number": "RFH-8052",
+    "model": "Toyota Yaris Cross (白)",
+    "user_name": "行動租車用戶 (U0882)",
+    "start_time": "2026-08-31 12:48",
+    "end_time": "2026-08-31 12:48",
+    "insurance": true,
+    "status": "needs_review",
+    "ai_summary": "偵測到 17 處車損 (Missing part 81%)",
+    "damage_count": 17,
+    "max_confidence": 0.8183,
+    "reviewer": "尚未指派",
+    "review_note": "",
+    "penalty_amount": 0,
+    "created_at": "2026-08-31 12:48:21",
+    "quality_metrics": {
+      "blur_score": 1372.43,
+      "mean_brightness": 128.73
+    },
+    "comparisons": {
+      "front_left": {
+        "has_damage": true,
+        "before_url": "http://localhost:8000/static/uploads/ORD-20260831-75B7_orig.jpg",
+        "after_url": "http://localhost:8000/static/uploads/ORD-20260831-75B7_anno.jpg",
+        "detections": [
+          {
+            "label": "Missing part",
+            "confidence": 0.8183,
+            "box": [
+              481.0,
+              161.0,
+              547.0,
+              212.0
+            ],
+            "pos": "X:481~547, Y:161~212"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.5899,
+            "box": [
+              99.0,
+              20.0,
+              139.0,
+              101.0
+            ],
+            "pos": "X:99~139, Y:20~101"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.4862,
+            "box": [
+              136.0,
+              168.0,
+              193.0,
+              254.0
+            ],
+            "pos": "X:136~193, Y:168~254"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.4854,
+            "box": [
+              80.0,
+              19.0,
+              141.0,
+              237.0
+            ],
+            "pos": "X:80~141, Y:19~237"
+          },
+          {
+            "label": "Dent",
+            "confidence": 0.3665,
+            "box": [
+              139.0,
+              170.0,
+              168.0,
+              250.0
+            ],
+            "pos": "X:139~168, Y:170~250"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.3366,
+            "box": [
+              176.0,
+              201.0,
+              352.0,
+              380.0
+            ],
+            "pos": "X:176~352, Y:201~380"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.3277,
+            "box": [
+              35.0,
+              97.0,
+              104.0,
+              235.0
+            ],
+            "pos": "X:35~104, Y:97~235"
+          },
+          {
+            "label": "Dent",
+            "confidence": 0.3068,
+            "box": [
+              162.0,
+              165.0,
+              262.0,
+              239.0
+            ],
+            "pos": "X:162~262, Y:165~239"
+          },
+          {
+            "label": "Dent",
+            "confidence": 0.2959,
+            "box": [
+              187.0,
+              204.0,
+              208.0,
+              220.0
+            ],
+            "pos": "X:187~208, Y:204~220"
+          },
+          {
+            "label": "Dent",
+            "confidence": 0.2773,
+            "box": [
+              42.0,
+              107.0,
+              103.0,
+              235.0
+            ],
+            "pos": "X:42~103, Y:107~235"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.2686,
+            "box": [
+              183.0,
+              209.0,
+              264.0,
+              257.0
+            ],
+            "pos": "X:183~264, Y:209~257"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.2671,
+            "box": [
+              59.0,
+              18.0,
+              166.0,
+              244.0
+            ],
+            "pos": "X:59~166, Y:18~244"
+          },
+          {
+            "label": "Dent",
+            "confidence": 0.2442,
+            "box": [
+              164.0,
+              170.0,
+              211.0,
+              229.0
+            ],
+            "pos": "X:164~211, Y:170~229"
+          },
+          {
+            "label": "Paint chip",
+            "confidence": 0.2399,
+            "box": [
+              255.0,
+              357.0,
+              263.0,
+              363.0
+            ],
+            "pos": "X:255~263, Y:357~363"
+          },
+          {
+            "label": "Dent",
+            "confidence": 0.2209,
+            "box": [
+              87.0,
+              148.0,
+              145.0,
+              249.0
+            ],
+            "pos": "X:87~145, Y:148~249"
+          },
+          {
+            "label": "Dent",
+            "confidence": 0.2168,
+            "box": [
+              49.0,
+              148.0,
+              102.0,
+              236.0
+            ],
+            "pos": "X:49~102, Y:148~236"
+          },
+          {
+            "label": "Broken part",
+            "confidence": 0.2007,
+            "box": [
+              147.0,
+              237.0,
+              212.0,
+              364.0
+            ],
+            "pos": "X:147~212, Y:237~364"
+          }
+        ]
+      }
+    }
+  }
+]

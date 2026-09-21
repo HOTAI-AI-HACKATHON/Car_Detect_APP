@@ -1,0 +1,25 @@
+[project]
+name = "car-detect-server"
+version = "0.1.0"
+description = "AI Car Damage Inspection API & Customer Service Admin Dashboard"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.22.0",
+    "python-multipart>=0.0.6",
+    "streamlit>=1.30.0",
+    "plotly>=5.18.0",
+    "pandas>=2.0.0",
+    "numpy>=1.22.0",
+    "pillow>=9.5.0",
+    "requests>=2.31.0",
+    "ultralytics>=8.3.0",
+    "torch>=2.0.0",
+    "torchvision",
+    "opencv-python>=4.8.0",
+    "pyyaml",
+]
+
+[dependency-groups]
+dev = []

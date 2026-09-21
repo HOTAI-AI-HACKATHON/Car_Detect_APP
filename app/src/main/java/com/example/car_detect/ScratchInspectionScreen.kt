@@ -1,6 +1,9 @@
 package com.example.car_detect
 
 import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -35,13 +38,16 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -106,6 +112,27 @@ fun ScratchInspectionScreen(
 
     val imageCapture = remember { ImageCapture.Builder().build() }
     val previewView = remember { PreviewView(context) }
+
+    // 測試用：相簿選取照片 Launcher
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            handlePickedPhoto(
+                context = context,
+                uri = uri,
+                onPhotoCaptured = { bitmap -> scratchPhotos.add(bitmap) },
+                onQualityRejected = { errorMsg ->
+                    qualityWarningBannerText = when {
+                        errorMsg.contains("模糊") -> "畫面過於模糊，請重新拍攝"
+                        errorMsg.contains("暗") -> "畫面過暗，請重新拍攝"
+                        errorMsg.contains("過曝") || errorMsg.contains("反光") -> "畫面過曝，請重新拍攝"
+                        else -> "畫面不清晰，請重新拍攝"
+                    }
+                }
+            )
+        }
+    }
 
     // 相機綁定
     DisposableEffect(Unit) {
@@ -196,15 +223,58 @@ fun ScratchInspectionScreen(
                         modifier = Modifier.align(Alignment.Center)
                     )
 
+                    var showIpDialog by remember { mutableStateOf(false) }
+                    var tempIpText by remember { mutableStateOf(CarDamageApiService.getServerUrl(context)) }
+
+                    if (showIpDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showIpDialog = false },
+                            title = { Text("⚙️ 伺服器連線設定", fontWeight = FontWeight.Bold) },
+                            text = {
+                                Column {
+                                    Text(
+                                        text = "請輸入電腦本機 API 伺服器網址 (包含 Port 8000)：\n• USB / 模擬器：http://127.0.0.1:8000\n• 模擬器備援：http://10.0.2.2:8000\n• 同 Wi-Fi 模式：http://192.168.2.102:8000",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF666666),
+                                        lineHeight = 18.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    androidx.compose.material3.OutlinedTextField(
+                                        value = tempIpText,
+                                        onValueChange = { tempIpText = it },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = { Text("伺服器 URL") }
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        CarDamageApiService.setServerUrl(context, tempIpText)
+                                        showIpDialog = false
+                                        Toast.makeText(context, "已儲存伺服器連線網址！", Toast.LENGTH_SHORT).show()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD7000F))
+                                ) {
+                                    Text("儲存", color = Color.White)
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showIpDialog = false }) {
+                                    Text("取消", color = Color(0xFF888888))
+                                }
+                            }
+                        )
+                    }
+
                     IconButton(
-                        onClick = {
-                            Toast.makeText(context, "聯繫客服", Toast.LENGTH_SHORT).show()
-                        },
+                        onClick = { showIpDialog = true },
                         modifier = Modifier.align(Alignment.CenterEnd)
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_headset),
-                            contentDescription = "客服",
+                            contentDescription = "伺服器設定",
                             tint = Color(0xFF666666),
                             modifier = Modifier.size(22.dp)
                         )
@@ -384,7 +454,7 @@ fun ScratchInspectionScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // 5. 底部快門按鈕區 + 右側完成膠囊按鈕 (完全同步 CameraScreen 美編)
+        // 5. 底部快門按鈕區 + 左側選取相片 + 右側完成膠囊按鈕
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -392,6 +462,23 @@ fun ScratchInspectionScreen(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
+            // 左下角「選取測試相片」灰色膠囊按鈕
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .clip(RoundedCornerShape(80.dp))
+                    .background(Color(0xFFE2E8F0))
+                    .clickable { galleryLauncher.launch("image/*") }
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "🖼️ 選測試圖",
+                    color = Color(0xFF334155),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
             // 大圓形快門按鈕 (居中，同步 CameraScreen 極簡白圈)
             Box(
                 modifier = Modifier
@@ -477,7 +564,7 @@ private fun takeScratchPhotoFile(
                 val originalBitmap = loadScratchOrientedBitmap(photoFile.absolutePath) ?: return
 
                 kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                    val result = CarDamageApiService.uploadAndPredict(photoFile)
+                    val result = CarDamageApiService.uploadAndPredict(photoFile, context)
                     when (result.status) {
                         "success" -> {
                             val finalBitmap = result.annotatedBitmap ?: originalBitmap.asImageBitmap()
@@ -516,15 +603,13 @@ private fun loadScratchOrientedBitmap(filePath: String): Bitmap? {
             ExifInterface.TAG_ORIENTATION,
             ExifInterface.ORIENTATION_UNDEFINED
         )
-        var degrees = when (orientation) {
+        val degrees = when (orientation) {
             ExifInterface.ORIENTATION_ROTATE_90 -> 90f
             ExifInterface.ORIENTATION_ROTATE_180 -> 180f
             ExifInterface.ORIENTATION_ROTATE_270 -> 270f
             else -> 0f
         }
-        if (degrees == 0f && bitmap.width > bitmap.height) {
-            degrees = 90f
-        }
+
         if (degrees != 0f) {
             val matrix = Matrix()
             matrix.postRotate(degrees)
@@ -536,3 +621,50 @@ private fun loadScratchOrientedBitmap(filePath: String): Bitmap? {
         bitmap
     }
 }
+
+// ===== 處理從相簿選取的測試照片 =====
+private fun handlePickedPhoto(
+    context: Context,
+    uri: Uri,
+    onPhotoCaptured: (ImageBitmap) -> Unit,
+    onQualityRejected: (String) -> Unit
+) {
+    try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val tempFile = File(context.cacheDir, "TEST_PICKED_${timestamp}.jpg")
+        
+        tempFile.outputStream().use { output ->
+            inputStream.copyTo(output)
+        }
+
+        val originalBitmap = loadScratchOrientedBitmap(tempFile.absolutePath) ?: return
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            Toast.makeText(context, "🔄 正在上傳測試照片進行 AI 辨識...", Toast.LENGTH_SHORT).show()
+            val result = CarDamageApiService.uploadAndPredict(tempFile, context)
+            when (result.status) {
+                "success" -> {
+                    val finalBitmap = result.annotatedBitmap ?: originalBitmap.asImageBitmap()
+                    onPhotoCaptured(finalBitmap)
+                    val msg = if (result.damageCount > 0) {
+                        "✅ 辨識成功！發現 ${result.damageCount} 處車損"
+                    } else {
+                        "✅ 測試照片辨識完成 (未發現顯著車損)"
+                    }
+                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                }
+                "rejected" -> {
+                    onQualityRejected(result.message)
+                }
+                else -> {
+                    onPhotoCaptured(originalBitmap.asImageBitmap())
+                    Toast.makeText(context, "✅ 已新增測試照片 (${result.message})", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    } catch (e: Exception) {
+        Toast.makeText(context, "選取照片失敗: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+    }
+}
+
