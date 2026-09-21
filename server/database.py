@@ -242,12 +242,17 @@ def save_inspection_result(
     inspection_status = "needs_review" if damage_count > 0 else "auto_passed"
 
     # 3. 建立或更新 Order 訂單
-    cursor.execute("SELECT id FROM orders WHERE id = ?", (order_id,))
-    if not cursor.fetchone():
+    cursor.execute("SELECT id, inspection_status FROM orders WHERE id = ?", (order_id,))
+    existing_order = cursor.fetchone()
+    if not existing_order:
         cursor.execute("""
         INSERT INTO orders (id, user_id, vehicle_id, insurance, start_time, end_time, status, inspection_status, created_at)
         VALUES (?, ?, ?, 1, ?, ?, 'end', ?, ?)
         """, (order_id, u_id, veh_id, now_str[:16], now_str[:16], inspection_status, now_str))
+    else:
+        # 若已有訂單且新照片有車損，自動升級為 needs_review
+        if damage_count > 0:
+            cursor.execute("UPDATE orders SET inspection_status = 'needs_review' WHERE id = ?", (order_id,))
 
     # 4. 建立 VehiclePhoto 照片記錄
     photo_id = f"pho_{uuid.uuid4().hex[:8]}"
@@ -272,10 +277,91 @@ def save_inspection_result(
     conn.close()
     return {"order_id": order_id, "inspection_status": inspection_status}
 
+def get_recent_active_order_id(plate_number: str, max_age_seconds: int = 600) -> Optional[str]:
+    """
+    尋找同一車輛在指定秒數內（預設 10 分鐘）建立的批次訂單，便於同一批上傳的照片集中在同一個摺頁
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT o.id, o.created_at 
+    FROM orders o
+    JOIN vehicles v ON o.vehicle_id = v.id
+    WHERE v.plate_number = ?
+    ORDER BY o.created_at DESC
+    LIMIT 1
+    """, (plate_number,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    try:
+        created_dt = datetime.strptime(row["created_at"], "%Y-%m-%d %H:%M:%S")
+        if abs((datetime.now() - created_dt).total_seconds()) <= max_age_seconds:
+            return row["id"]
+    except Exception:
+        pass
+    return None
+
+def auto_merge_nearby_orders(max_gap_seconds: int = 300):
+    """
+    自動檢查並將相近時間（預設 5 分鐘內）同一車輛上傳的多筆單張照片訂單，合併到同一個訂單批次中
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT id, vehicle_id, created_at, inspection_status 
+    FROM orders 
+    ORDER BY vehicle_id, created_at ASC
+    """)
+    rows = cursor.fetchall()
+    if not rows:
+        conn.close()
+        return
+
+    batches = []
+    current_batch = []
+    for r in rows:
+        try:
+            dt = datetime.strptime(r["created_at"], "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            dt = datetime.now()
+        if not current_batch:
+            current_batch.append((r, dt))
+        else:
+            prev_r, prev_dt = current_batch[-1]
+            if r["vehicle_id"] == prev_r["vehicle_id"] and abs((dt - prev_dt).total_seconds()) <= max_gap_seconds:
+                current_batch.append((r, dt))
+            else:
+                if len(current_batch) > 1:
+                    batches.append(current_batch)
+                current_batch = [(r, dt)]
+    if len(current_batch) > 1:
+        batches.append(current_batch)
+
+    for b in batches:
+        master_id = b[0][0]["id"]
+        other_ids = [item[0]["id"] for item in b[1:]]
+        has_review = any(item[0]["inspection_status"] == "needs_review" for item in b)
+
+        for oid in other_ids:
+            cursor.execute("UPDATE vehicle_photos SET order_id = ? WHERE order_id = ?", (master_id, oid))
+            cursor.execute("DELETE FROM human_reviews WHERE order_id = ?", (oid,))
+            cursor.execute("DELETE FROM orders WHERE id = ?", (oid,))
+
+        if has_review:
+            cursor.execute("UPDATE orders SET inspection_status = 'needs_review' WHERE id = ?", (master_id,))
+
+    conn.commit()
+    conn.close()
+
 def get_all_orders_for_admin() -> List[dict]:
     """
-    提供給 Streamlit 客服審核後台獲取完整訂單 + 左右比對視角 + 瑕疵詳情
+    提供給 Streamlit 客服審核後台獲取完整訂單 + 該批次所有照片列表 + 左右比對視角 + 瑕疵詳情
     """
+    # 讀取時自動合併同一時段上傳的多張照片訂單
+    auto_merge_nearby_orders()
+
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -304,17 +390,26 @@ def get_all_orders_for_admin() -> List[dict]:
     order_rows = cursor.fetchall()
     results = []
 
+    angle_names = {
+        "front_left": "📸 左前方",
+        "front_right": "📸 右前方",
+        "rear_left": "📸 左後方",
+        "rear_right": "📸 右後方",
+        "scratch": "🩹 傷痕特寫"
+    }
+
     for row in order_rows:
         order_dict = dict(row)
         order_id = order_dict["order_id"]
 
         # 抓取該訂單的所有照片與 AI 偵測結果
         cursor.execute("""
-        SELECT * FROM vehicle_photos WHERE order_id = ?
+        SELECT * FROM vehicle_photos WHERE order_id = ? ORDER BY created_at ASC
         """, (order_id,))
         photo_rows = cursor.fetchall()
 
         comparisons = {}
+        photos_list = []
         total_damage = 0
         max_conf = 0.0
         labels_list = []
@@ -336,14 +431,29 @@ def get_all_orders_for_admin() -> List[dict]:
                     max_conf = d_dict["confidence"]
                 labels_list.append(d_dict["label"])
 
-            comparisons[angle_key] = {
+            angle_clean = angle_key.lower().replace("-", "_")
+            angle_title = angle_names.get(angle_clean)
+            if not angle_title:
+                if "scratch" in angle_clean:
+                    angle_title = f"🩹 傷痕特寫 #{len(photos_list)+1}"
+                else:
+                    angle_title = f"📸 {angle_clean.replace('_', ' ').title()}"
+
+            photo_item = {
+                "photo_id": photo_id,
+                "angle": angle_key,
+                "angle_label": angle_title,
                 "has_damage": len(detections) > 0,
+                "damage_count": len(detections),
                 "before_url": p_dict["raw_url"],
                 "after_url": p_dict["annotated_url"] or p_dict["raw_url"],
                 "blur_score": p_dict["blur_score"],
                 "mean_brightness": p_dict["mean_brightness"],
-                "detections": detections
+                "detections": detections,
+                "created_at": p_dict["created_at"]
             }
+            photos_list.append(photo_item)
+            comparisons[angle_key] = photo_item
 
         # 組裝 AI 摘要文字
         if total_damage > 0:
@@ -358,6 +468,8 @@ def get_all_orders_for_admin() -> List[dict]:
         order_dict["review_note"] = order_dict.get("review_note") or ""
         order_dict["penalty_amount"] = order_dict.get("penalty_amount") or 0
         order_dict["comparisons"] = comparisons
+        order_dict["photos"] = photos_list
+        order_dict["photo_count"] = len(photos_list)
 
         results.append(order_dict)
 

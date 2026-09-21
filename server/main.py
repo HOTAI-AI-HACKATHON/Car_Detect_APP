@@ -171,10 +171,12 @@ async def predict_damage(
     file: UploadFile = File(...),
     plate_number: Optional[str] = Form("RFH-8052"),
     user_id: Optional[str] = Form("U0882"),
-    angle: Optional[str] = Form("front_left")
+    angle: Optional[str] = Form(None),
+    order_id: Optional[str] = Form(None)
 ):
     """
-    接收 Android App 上傳之照片，執行品質檢測與 YOLO 車損辨識，並將完整的訂單/照片/瑕疵紀錄寫入資料庫
+    接收 Android App 上傳之照片，執行品質檢測與 YOLO 車損辨識，並將完整的訂單/照片/瑕疵紀錄寫入資料庫。
+    自動將同車輛在 10 分鐘內上傳的同一批照片集中於同一個訂單 (摺頁) 內。
     """
     try:
         file_bytes = await file.read()
@@ -196,10 +198,19 @@ async def predict_damage(
         annotated_img, predictions = detector.detect_and_annotate(img)
         damage_count = len(predictions)
 
-        # 3. 儲存檔案與生成 Base64
-        order_id = f"ORD-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
-        orig_filename = f"{order_id}_orig.jpg"
-        anno_filename = f"{order_id}_anno.jpg"
+        # 3. 判定批次訂單歸屬 (若前端有指定 order_id 則使用，否則合併至 10 分鐘內最近訂單)
+        if order_id and order_id.strip():
+            final_order_id = order_id.strip()
+        else:
+            recent_order_id = database.get_recent_active_order_id(plate_number, max_age_seconds=600)
+            if recent_order_id:
+                final_order_id = recent_order_id
+            else:
+                final_order_id = f"ORD-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
+
+        photo_uid = uuid.uuid4().hex[:6]
+        orig_filename = f"{final_order_id}_{photo_uid}_orig.jpg"
+        anno_filename = f"{final_order_id}_{photo_uid}_anno.jpg"
 
         orig_path = os.path.join(STATIC_DIR, orig_filename)
         anno_path = os.path.join(STATIC_DIR, anno_filename)
@@ -210,13 +221,27 @@ async def predict_damage(
         _, buffer = cv2.imencode(".jpg", annotated_img, [cv2.IMWRITE_JPEG_QUALITY, 85])
         annotated_base64 = base64.b64encode(buffer).decode("utf-8")
 
-        # 4. 寫入資料庫 (Order, VehiclePhoto, AIDetection 三張表)
-        angle_key = angle.lower().replace("-", "_")
-        if angle_key not in ["front_left", "front_right", "rear_left", "rear_right", "front_inside", "rear_inside"]:
-            angle_key = "front_left"
+        # 4. 解析視角標籤 (若無指定則由檔名自動偵測)
+        if not angle or angle.strip() == "":
+            fn = (file.filename or "").upper()
+            if "RIGHT_FRONT" in fn or "FRONT_RIGHT" in fn:
+                angle_key = "front_right"
+            elif "LEFT_FRONT" in fn or "FRONT_LEFT" in fn:
+                angle_key = "front_left"
+            elif "RIGHT_REAR" in fn or "REAR_RIGHT" in fn:
+                angle_key = "rear_right"
+            elif "LEFT_REAR" in fn or "REAR_LEFT" in fn:
+                angle_key = "rear_left"
+            elif "SCRATCH" in fn:
+                angle_key = f"scratch_{photo_uid}"
+            else:
+                angle_key = "front_left"
+        else:
+            angle_key = angle.lower().replace("-", "_")
 
+        # 5. 寫入資料庫 (追加至該批次訂單)
         database.save_inspection_result(
-            order_id=order_id,
+            order_id=final_order_id,
             plate_number=plate_number,
             user_id=user_id,
             angle=angle_key,
@@ -229,7 +254,7 @@ async def predict_damage(
         return {
             "status": "success",
             "message": f"辨識完成，偵測到 {damage_count} 處疑似車損",
-            "order_id": order_id,
+            "order_id": final_order_id,
             "damage_count": damage_count,
             "quality_metrics": quality_metrics,
             "predictions": predictions,

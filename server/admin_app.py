@@ -22,21 +22,35 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
-    html, body, [class*="css"] {
+    html, body, [class*="css"], .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
     }
     
-    .stApp {
-        background-color: #f8fafc;
+    /* 徹底防護白底白字：全域段落、標籤、文字一律設為深灰黑高對比 */
+    p, span, label, li, dt, dd, .stMarkdown, .stText, [data-testid="stMarkdownContainer"] p {
+        color: #1e293b !important;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        color: #0f172a !important;
+        font-weight: 700 !important;
+    }
+    b, strong {
+        color: #0f172a !important;
+        font-weight: 700 !important;
     }
     
+    /* 頂部 Header Box (深藍底 + 明亮白字) */
     .header-box {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
         padding: 24px 32px;
         border-radius: 16px;
-        color: white;
         margin-bottom: 24px;
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    .header-box * {
+        color: #ffffff !important;
     }
     .header-title {
         font-size: 26px;
@@ -45,16 +59,17 @@ st.markdown("""
         letter-spacing: -0.5px;
     }
     .header-subtitle {
-        color: #94a3b8;
+        color: #cbd5e1 !important;
         font-size: 14px;
         margin-top: 6px;
     }
 
+    /* 指標卡片 (KPI Card) */
     .kpi-card {
-        background: white;
+        background: #ffffff !important;
         border-radius: 14px;
         padding: 20px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #cbd5e1 !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
@@ -64,45 +79,95 @@ st.markdown("""
     }
     .kpi-title {
         font-size: 13px;
-        color: #64748b;
-        font-weight: 600;
+        color: #475569 !important;
+        font-weight: 700 !important;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
     .kpi-value {
         font-size: 28px;
-        font-weight: 700;
-        color: #0f172a;
+        font-weight: 800 !important;
+        color: #0f172a !important;
         margin: 8px 0 4px 0;
     }
     .kpi-delta {
         font-size: 12px;
-        font-weight: 500;
+        font-weight: 600 !important;
     }
-    .kpi-positive { color: #10b981; }
-    .kpi-neutral { color: #3b82f6; }
-    .kpi-negative { color: #ef4444; }
+    .kpi-positive { color: #166534 !important; }
+    .kpi-neutral { color: #1d4ed8 !important; }
+    .kpi-negative { color: #b91c1c !important; }
 
+    /* 狀態標籤 (Badges) */
     .badge {
         display: inline-block;
-        padding: 4px 10px;
+        padding: 4px 12px;
         border-radius: 9999px;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 700 !important;
         text-align: center;
     }
-    .badge-pass { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-    .badge-review { background-color: #fef9c3; color: #a16207; border: 1px solid #fef08a; }
-    .badge-damage { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
-    .badge-dispute { background-color: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+    .badge-pass { background-color: #dcfce7 !important; color: #14532d !important; border: 1px solid #86efac !important; }
+    .badge-review { background-color: #fef9c3 !important; color: #713f12 !important; border: 1px solid #fde047 !important; }
+    .badge-damage { background-color: #fee2e2 !important; color: #7f1d1d !important; border: 1px solid #fca5a5 !important; }
+    .badge-dispute { background-color: #f3e8ff !important; color: #581c87 !important; border: 1px solid #d8b4fe !important; }
 
+    /* 工作台卡片 (Workbench Card) */
     .workbench-card {
-        background: white;
+        background: #ffffff !important;
         border-radius: 14px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #cbd5e1 !important;
         padding: 20px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.03);
         margin-bottom: 16px;
+    }
+    .workbench-card * {
+        color: #0f172a !important;
+    }
+
+    /* 摺頁 (Expander) 強制純白卡片背景與清晰深色字 */
+    [data-testid="stExpander"] {
+        background-color: #ffffff !important;
+        border: 1.5px solid #cbd5e1 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
+        margin-bottom: 16px !important;
+    }
+    [data-testid="stExpander"] summary {
+        background-color: #ffffff !important;
+        padding: 12px 16px !important;
+    }
+    [data-testid="stExpander"] summary * {
+        color: #0f172a !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+    }
+    [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+        background-color: #ffffff !important;
+        padding: 18px 20px !important;
+        border-top: 1px solid #e2e8f0 !important;
+    }
+    [data-testid="stExpander"] [data-testid="stExpanderDetails"] * {
+        color: #1e293b !important;
+    }
+
+    /* 分頁 Tabs 樣式 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #f1f5f9 !important;
+        padding: 6px;
+        border-radius: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        padding: 6px 16px;
+        color: #475569 !important;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     }
 
     footer {visibility: hidden;}
@@ -302,7 +367,7 @@ elif nav_choice == "📋 訂單與審核工作台 (Review)":
             or search_query.lower() in (o.get("user_name") or "").lower()
         ]
 
-    st.markdown("### 📑 案件清單 (點選進入審核)")
+    st.markdown("### 📑 案件清單 (同一批上傳圖片集中在同一個摺頁內)")
     
     for idx, order in enumerate(filtered_orders):
         if order["status"] == "auto_passed":
@@ -314,124 +379,143 @@ elif nav_choice == "📋 訂單與審核工作台 (Review)":
         else:
             badge_html = '<span class="badge badge-dispute">⚖️ 爭議中</span>'
 
-        with st.expander(f"{order['order_id']} ｜ 車牌：{order.get('plate_number', '未知')} ({order.get('model', '車輛')}) ｜ 會員：{order.get('user_name', '租借人')}", expanded=(idx==0 and order["status"]=="needs_review")):
-            col_info, col_btn = st.columns([4, 1])
-            with col_info:
-                st.markdown(f"""
-                - **租借時段**：`{order['start_time']}` 至 `{order['end_time']}` ｜ **加購安心保險**：{'🛡️ 有' if order.get('insurance', True) else '❌ 無'}
-                - **AI 偵測結果**：**{order.get('ai_summary', '無異常')}**
-                - **複審狀態**：{badge_html} ｜ **處理人員**：`{order.get('reviewer', '尚未指派')}`
-                - **審核備註**：_{order.get('review_note') or '尚無備註'}_
-                """, unsafe_allow_html=True)
-            with col_btn:
-                if st.button("🔍 進入審核工作台", key=f"btn_review_{order['order_id']}", width="stretch", type="primary" if order["status"]=="needs_review" else "secondary"):
-                    st.session_state.selected_order_id = order["order_id"]
+        photos = order.get("photos", [])
+        photo_count = len(photos)
+        expander_title = f"{order['order_id']} ｜ 車牌：{order.get('plate_number', '未知')} ({order.get('model', '車輛')}) ｜ 📸 包含 {photo_count} 張檢驗照片 ｜ 會員：{order.get('user_name', '租借人')}"
 
-    # ==============================================================================
-    # 審核工作台詳情 (Before vs After Diff Viewer)
-    # ==============================================================================
-    selected_id = st.session_state.get("selected_order_id", filtered_orders[0]["order_id"] if filtered_orders else None)
-    active_order = next((o for o in st.session_state.orders if o["order_id"] == selected_id), None)
-
-    if active_order and active_order.get("comparisons"):
-        st.markdown("---")
-        st.markdown(f"## 🛠️ 案件詳細審核工作台：`{active_order['order_id']}`")
-        
-        st.markdown(f"""
-        <div class="workbench-card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                    <h3 style="margin:0; font-size:18px;">🚗 {active_order.get('plate_number', '未知')} ｜ {active_order.get('model', '車輛')}</h3>
-                    <span style="color:#64748b; font-size:13px;">租借人：{active_order.get('user_name', '租借人')} ｜ 還車時間：{active_order['end_time']} ｜ 保險：{'已投保' if active_order.get('insurance', True) else '未投保'}</span>
-                </div>
-                <div>
-                    <span style="font-size:13px; color:#64748b;">AI 標籤：</span> <b>{active_order.get('ai_summary', '')}</b>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        comparisons = active_order.get("comparisons", {})
-        active_angle_key = list(comparisons.keys())[0] if comparisons else "front_left"
-        comp = comparisons.get(active_angle_key, {})
-
-        view_col, action_col = st.columns([2.2, 1])
-        
-        with view_col:
-            st.markdown("#### 🔄 左右對照檢視區 (Before vs. After Diff)")
-            toggle_bbox = st.toggle("顯示 AI 辨識框與熱區遮罩 (Bounding Box Overlay)", value=True)
-            
-            img_c1, img_c2 = st.columns(2)
-            with img_c1:
-                st.caption("📸 1. 取車前照片 (Before)")
-                before_img = comp.get("before_url") or "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800"
-                st.image(before_img, width="stretch")
-            with img_c2:
-                st.caption("📸 2. 還車後照片 (After + AI 偵測)")
-                after_img = comp.get("after_url") or comp.get("before_url")
-                st.image(after_img, width="stretch")
-                
-                if toggle_bbox and comp.get("detections"):
-                    det_lines = []
-                    for d in comp.get("detections", []):
-                        det_lines.append(f"• 🔴 <b>[{d.get('label')}]</b> 信心度 {int(d.get('confidence', 0.9)*100)}%")
-                    
-                    st.markdown(f"""
-                    <div style="background:#fee2e2; border:1px solid #f87171; border-radius:8px; padding:10px; margin-top:8px;">
-                        <span style="color:#b91c1c; font-size:13px; font-weight:600;">🚨 AI 偵測疊加層：</span><br>
-                        <span style="color:#7f1d1d; font-size:12px;">{'<br>'.join(det_lines)}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-        with action_col:
-            st.markdown("#### ✍️ 審核操作面板 (Action Panel)")
-            
+        with st.expander(expander_title, expanded=(idx == 0 and order["status"] == "needs_review")):
+            # 1. 訂單基本資訊卡
             st.markdown(f"""
-            <div style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:12px;">
-                <div style="font-size:13px; font-weight:600; color:#334155;">🤖 AI 判斷摘要：</div>
-                <div style="font-size:12px; color:#64748b; margin-top:4px;">
-                    • 偵測瑕疵數：<b>{active_order.get('damage_count', 0)} 處</b><br>
-                    • 最高信心度：<b>{int(active_order.get('max_confidence', 0.9)*100)}%</b><br>
-                    • 判定結果：<b>{'建議人工複審' if active_order.get('damage_count', 0)>0 else '符合自動通過標準'}</b>
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <div style="font-size:17px; font-weight:700; color:#0f172a;">🚗 {order.get('plate_number', '未知')} ｜ {order.get('model', '車輛')}</div>
+                        <div style="font-size:13px; color:#334155; margin-top:4px;">
+                            👤 租借人：<b style="color:#0f172a;">{order.get('user_name', '租借人')}</b> ({order.get('user_account', '')}) ｜ 
+                            🕒 租借時段：<code style="color:#0f172a; font-weight:600;">{order['start_time']}</code> 至 <code style="color:#0f172a; font-weight:600;">{order['end_time']}</code> ｜ 
+                            🛡️ 保險：<b style="color:#0f172a;">{'已投保安心險' if order.get('insurance', True) else '未投保'}</b>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span style="font-size:13px; color:#475569; font-weight:600;">案件狀態：</span> {badge_html}<br>
+                        <span style="font-size:12px; color:#64748b;">處理專員：<b style="color:#0f172a;">{order.get('reviewer', '尚未指派')}</b></span>
+                    </div>
+                </div>
+                <div style="margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0; font-size:13px; color:#1e293b;">
+                    🤖 <b>AI 綜合判定</b>：<span style="font-weight:700; color:{'#b91c1c' if order.get('damage_count',0)>0 else '#15803d'};">{order.get('ai_summary', '無異常')}</span>
+                    {(' ｜ ✍️ <b>審核備註</b>：<span style="color:#334155; font-style:italic;">' + order.get('review_note') + '</span>') if order.get('review_note') else ''}
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
-            penalty_input = st.number_input("求償/清潔維修費用 (NT$)", min_value=0, value=2500, step=500)
-            resp_choice = st.selectbox("責任歸屬判定", ["租借人過失 (User Fault)", "既有舊傷誤判 (False Positive)", "第三方/不明 (Uncertain)"])
-            review_note = st.text_area("審核備註記錄", value=f"經客服專員核對，確認為本趟檢驗車況。")
+            # 2. 同一批上傳的圖片集中在此摺頁展示
+            if photos:
+                st.markdown(f"#### 📸 本次檢驗照片清單（共 {len(photos)} 張）")
+                tab_titles = [f"{p['angle_label']} {'🚨 ' + str(p['damage_count']) + ' 處瑕疵' if p['has_damage'] else '🟢 良好'}" for p in photos]
+                tabs = st.tabs(tab_titles)
+                
+                for p_idx, p in enumerate(photos):
+                    with tabs[p_idx]:
+                        col_img, col_detail = st.columns([1.8, 1.2])
+                        with col_img:
+                            toggle_key = f"toggle_bbox_{order['order_id']}_{p['photo_id']}"
+                            show_bbox = st.toggle("顯示 AI 辨識框與熱區遮罩", value=True, key=toggle_key)
+                            
+                            c_before, c_after = st.columns(2)
+                            with c_before:
+                                st.caption("📸 1. 取車前原圖 (Before)")
+                                st.image(p["before_url"], width="stretch")
+                            with c_after:
+                                st.caption("📸 2. 還車後 AI 辨識圖 (After)")
+                                display_url = p["after_url"] if show_bbox else p["before_url"]
+                                st.image(display_url, width="stretch")
 
-            b1, b2, b3 = st.columns(3)
-            with b1:
-                if st.button("✅ 確認車損扣款", type="primary", width="stretch"):
+                        with col_detail:
+                            st.markdown(f"""
+                            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:14px; margin-bottom:12px;">
+                                <div style="font-weight:700; color:#0f172a; font-size:15px; margin-bottom:8px;">🔍 {p['angle_label']} 辨識指標</div>
+                                <div style="font-size:13px; color:#334155; line-height:22px;">
+                                    • 偵測瑕疵數量：<b style="color:{'#b91c1c' if p['damage_count']>0 else '#15803d'}; font-size:14px;">{p['damage_count']} 處</b><br>
+                                    • 清晰度分數 (Laplacian)：<b style="color:#0f172a;">{p['blur_score']}</b> (良好)<br>
+                                    • 畫面平均亮度：<b style="color:#0f172a;">{p['mean_brightness']}</b><br>
+                                    • 上傳時間：<code style="color:#0f172a;">{p['created_at']}</code>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            if p["detections"]:
+                                det_html = "".join([f'<div style="font-size:12px; color:#7f1d1d; margin-bottom:4px; font-weight:600;">• 🔴 <b>[{d["label"]}]</b> 信心度 {int(d["confidence"]*100)}% ｜ 位置: {d.get("pos", "N/A")}</div>' for d in p["detections"]])
+                                st.markdown(f"""
+                                <div style="background:#fee2e2; border:1px solid #f87171; border-radius:10px; padding:12px;">
+                                    <div style="color:#991b1b; font-size:13px; font-weight:700; margin-bottom:6px;">🚨 AI 偵測車損清單：</div>
+                                    {det_html}
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.markdown("""
+                                <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:10px; padding:12px; font-size:13px; color:#14532d;">
+                                    🟢 <b>外觀完好無異常</b>：AI 未在此照片中偵測到明顯擦傷或碰撞損壞。
+                                </div>
+                                """, unsafe_allow_html=True)
+            else:
+                st.info("此案件尚無上傳照片。")
+
+            # 3. 摺頁內直接進行審核操作 (快速結案)
+            st.markdown("---")
+            st.markdown("##### ✍️ 客服快速審核操作面板")
+            a1, a2, a3 = st.columns([1, 1, 1.5])
+            with a1:
+                pen_amt = st.number_input(
+                    "求償/維修費用 (NT$)",
+                    min_value=0,
+                    value=order.get("penalty_amount", 2500 if order.get("damage_count", 0) > 0 else 0),
+                    step=500,
+                    key=f"pen_amt_{order['order_id']}"
+                )
+            with a2:
+                fault_type = st.selectbox(
+                    "責任歸屬判定",
+                    ["租借人過失 (User Fault)", "既有舊傷誤判 (False Positive)", "第三方/不明 (Uncertain)"],
+                    key=f"fault_type_{order['order_id']}"
+                )
+            with a3:
+                rev_text = st.text_input(
+                    "審核備註",
+                    value=order.get("review_note") or f"經客服專員核對該批次 {photo_count} 張照片，確認檢驗結果。",
+                    key=f"rev_text_{order['order_id']}"
+                )
+
+            act_b1, act_b2, act_b3 = st.columns(3)
+            with act_b1:
+                if st.button("✅ 確認車損扣款", key=f"btn_pay_{order['order_id']}", type="primary", width="stretch"):
                     database.update_human_review(
-                        order_id=active_order["order_id"],
+                        order_id=order["order_id"],
                         status="confirmed",
-                        note=f"【確認車損】收取 {penalty_input} 元 ({review_note})",
+                        note=f"【確認車損】收取 {pen_amt} 元 ({fault_type} - {rev_text})",
                         reviewer_name="客服專員 08",
-                        penalty_amount=penalty_input
+                        penalty_amount=pen_amt
                     )
-                    st.success("已完成扣款結單！(資料庫已同步更新)")
+                    st.success("✅ 已確認車損並完成扣款結單！")
                     st.rerun()
-            with b2:
-                if st.button("🟢 標記誤判/免賠", width="stretch"):
+            with act_b2:
+                if st.button("🟢 標記誤判/免賠", key=f"btn_pass_{order['order_id']}", width="stretch"):
                     database.update_human_review(
-                        order_id=active_order["order_id"],
+                        order_id=order["order_id"],
                         status="auto_passed",
-                        note=f"【判定免賠】{review_note}",
+                        note=f"【判定免賠】{fault_type} - {rev_text}",
                         reviewer_name="客服專員 08"
                     )
-                    st.info("已標記為 False Positive 並結案！(資料庫已同步更新)")
+                    st.info("🟢 已標記為免賠並結案！")
                     st.rerun()
-            with b3:
-                if st.button("⏸️ 待申訴/補件", width="stretch"):
+            with act_b3:
+                if st.button("⏸️ 待申訴/補件", key=f"btn_disp_{order['order_id']}", width="stretch"):
                     database.update_human_review(
-                        order_id=active_order["order_id"],
+                        order_id=order["order_id"],
                         status="disputed",
-                        note=f"【暫緩爭議】{review_note}",
+                        note=f"【暫緩爭議】{rev_text}",
                         reviewer_name="客服專員 08"
                     )
-                    st.warning("已轉入爭議流程！(資料庫已同步更新)")
+                    st.warning("⏸️ 已轉入爭議審查流程！")
                     st.rerun()
 
 
